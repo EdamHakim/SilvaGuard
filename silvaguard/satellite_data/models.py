@@ -24,6 +24,7 @@ class SatelliteImage(models.Model):
     cloud_coverage = models.FloatField(help_text="Cloud coverage percentage (0-100)")
     satellite_name = models.CharField(max_length=50, default='Sentinel-2')
     image_id = models.CharField(max_length=255, unique=True, help_text="Unique identifier from the satellite provider")
+    gee_id = models.CharField(max_length=255, null=True, blank=True, help_text="Google Earth Engine Asset ID")
     metadata_json = models.JSONField(null=True, blank=True, help_text="Additional metadata from the provider")
 
     class Meta:

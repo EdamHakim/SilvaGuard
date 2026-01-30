@@ -1,84 +1,95 @@
-import numpy as np
+import ee
+from .gee_utils import initialize_gee
 
 class VegetationAnalyzer:
     """
-    Performs vegetation analysis on preprocessed satellite data.
+    Performs vegetation analysis on satellite data using Google Earth Engine.
     """
+    
+    def __init__(self):
+        initialize_gee()
 
-    def calculate_ndvi(self, red_band: np.ndarray, nir_band: np.ndarray) -> np.ndarray:
+    def analyze_gee_image(self, gee_asset_id: str, aoi_geometry=None) -> dict:
         """
-        Calculates Normalized Difference Vegetation Index (NDVI).
-        Formula: (NIR - Red) / (NIR + Red)
-        """
-        # Ensure floating point arithmetic
-        red = red_band.astype(float)
-        nir = nir_band.astype(float)
-        
-        # Avoid division by zero
-        denominator = (nir + red)
-        denominator[denominator == 0] = 0.0001
-        
-        ndvi = (nir - red) / denominator
-        return ndvi
-
-    def analyze_forest_cover(self, ndvi_array: np.ndarray, threshold: float = 0.5) -> dict:
-        """
-        Analyzes the NDVI array to determine forest coverage metrics.
+        Analyzes a GEE image using Dynamic World (GOOGLE/DYNAMICWORLD/V1).
         
         Args:
-            ndvi_array: 2D numpy array of NDVI values.
-            threshold: Value above which a pixel is considered 'dense vegetation' or forest.
-
+            gee_asset_id: The Sentinel-2 Asset ID (e.g., COPERNICUS/S2_SR_HARMONIZED/...)
+            aoi_geometry: ee.Geometry object defining the area to reduce over.
+            
         Returns:
-            dict: {
-                'mean_ndvi': float,
-                'min_ndvi': float,
-                'max_ndvi': float,
-                'forest_pixels': int,
-                'total_pixels': int,
-                'forest_percentage': float
-            }
+            dict: Statistics including forest percentage (based on Dynamic World 'trees' class).
         """
-        # Mask out NaN values if any (from cloud masking)
-        valid_pixels = ndvi_array[~np.isnan(ndvi_array)]
-        
-        if valid_pixels.size == 0:
+        try:
+            # 1. Get the S2 Image (for geometry/time)
+            s2_image = ee.Image(gee_asset_id)
+            region = aoi_geometry if aoi_geometry else s2_image.geometry()
+            
+            # 2. Find matching Dynamic World Image
+            # Dynamic World images match S2 by time and bounds
+            # We filter the DW collection 
+            dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
+                .filterBounds(region) \
+                .filterDate(s2_image.date(), s2_image.date().advance(1, 'day')) \
+                .filter(ee.Filter.eq('system:index', s2_image.get('system:index')))
+            
+            # 3. Get the DW Image (Mosaic if multiple, but usually 1-to-1)
+            # Use query to ensure we get the best match or closest in time
+            dw_image = ee.Image(dw_col.first())
+            
+            if not dw_image:
+                 # Fallback: Try simpler time filter if system:index doesn't align perfectly
+                 dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
+                    .filterBounds(region) \
+                    .filterDate(s2_image.date().advance(-2, 'hour'), s2_image.date().advance(2, 'hour'))
+                 dw_image = ee.Image(dw_col.first())
+
+            if not dw_image:
+                 print(f"No Dynamic World image found for {gee_asset_id}")
+                 return {'mean_ndvi': 0.0, 'forest_percentage': 0.0}
+
+            # 4. Extract 'trees' probability (Band 'trees')
+            # Dynamic World bands: water, trees, grass, flooded_vegetation, crops, shrub_and_scrub, built, bare, snow_and_ice
+            trees_prob = dw_image.select('trees')
+            
+            # 5. Define Forest Mask (Probability > 0.5)
+            forest_mask = trees_prob.gt(0.5).rename('FOREST')
+            
+            # 6. Statistics
+            stats = forest_mask.reduceRegion(
+                reducer=ee.Reducer.mean(),
+                geometry=region,
+                scale=20,
+                maxPixels=1e9
+            )
+            
+            forest_fraction = stats.get('FOREST').getInfo()
+            
+            # For 'mean_ndvi' field (legacy name), we can store mean tree probability
+            mean_prob_stats = trees_prob.reduceRegion(
+                reducer=ee.Reducer.mean(),
+                geometry=region,
+                scale=20,
+                maxPixels=1e9
+            )
+            mean_tree_prob = mean_prob_stats.get('trees').getInfo()
+
             return {
-                'mean_ndvi': 0.0,
+                'mean_ndvi': mean_tree_prob if mean_tree_prob else 0.0, # Reuse field for Tree Prob
                 'min_ndvi': 0.0,
-                'max_ndvi': 0.0,
-                'forest_pixels': 0,
-                'total_pixels': 0,
-                'forest_percentage': 0.0
+                'max_ndvi': 1.0,
+                'forest_percentage': forest_fraction * 100 if forest_fraction else 0.0
             }
 
-        mean_ndvi = np.mean(valid_pixels)
-        min_ndvi = np.min(valid_pixels)
-        max_ndvi = np.max(valid_pixels)
-        
-        # Count pixels above threshold
-        forest_mask = valid_pixels > threshold
-        forest_count = np.sum(forest_mask)
-        total_count = valid_pixels.size
-        percentage = (forest_count / total_count) * 100
-        
-        return {
-            'mean_ndvi': float(mean_ndvi),
-            'min_ndvi': float(min_ndvi),
-            'max_ndvi': float(max_ndvi),
-            'forest_pixels': int(forest_count),
-            'total_pixels': int(total_count),
-            'forest_percentage': float(percentage)
-        }
+        except Exception as e:
+            print(f"GEE Analysis Failed for {gee_asset_id}: {e}")
+            return {
+                'mean_ndvi': 0.0, 'min_ndvi': 0.0, 'max_ndvi': 0.0, 'forest_percentage': 0.0
+            }
 
-    def generate_heatmap(self, ndvi_array: np.ndarray, output_path: str):
+    def generate_heatmap(self, gee_asset_id: str):
         """
-        Generates a visual heatmap from the NDVI array (Mock implementation for now).
-        In a real scenario, this would use matplotlib or rasterio to save an image.
+        For GEE, we don't generate a local heatmap file.
+        Instead, we might return a Tile URL or just a placeholder.
         """
-        # Mock: Just saving a text file pretending to be an image for the prototype
-        # Real implementation would save a PNG/JPG or GeoTIFF
-        with open(output_path, 'w') as f:
-            f.write("Mock NDVI Heatmap File")
-        
-        return output_path
+        return "GEE_LAYER"

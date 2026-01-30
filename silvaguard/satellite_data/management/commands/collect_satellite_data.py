@@ -67,6 +67,7 @@ class Command(BaseCommand):
                             'acquisition_date': meta['acquisition_date'],
                             'cloud_coverage': meta['cloud_coverage'],
                             'satellite_name': meta['satellite_name'],
+                            'gee_id': meta.get('gee_id'), # Save GEE Asset ID
                             'metadata_json': extra_data
                         }
                     )

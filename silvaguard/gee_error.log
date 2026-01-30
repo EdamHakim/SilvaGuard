@@ -1,0 +1,8 @@
+FAILED to initialize Google Earth Engine.
+Key Path: None
+Error: module 'ee.data' has no attribute '_credentials'
+Traceback (most recent call last):
+  File "D:\Everything\Hackathons\ActInSpace\SilvaGuard\silvaguard\satellite_data\gee_utils.py", line 15, in initialize_gee
+    if ee.data._credentials:
+       ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'ee.data' has no attribute '_credentials'. Did you mean: 'credentials_lib'?

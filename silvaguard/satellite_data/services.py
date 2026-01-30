@@ -1,55 +1,69 @@
-import random
+import ee
 from datetime import timedelta
 from typing import List, Dict, Any
+from .gee_utils import initialize_gee
 
 class Sentinel2Service:
     """
-    Service to handle interactions with Sentinel-2 satellite data providers.
-    Currently mocks data retrieval for development and testing purposes.
+    Service to handle interactions with Sentinel-2 via Google Earth Engine.
     """
+
+    def __init__(self):
+        initialize_gee()
 
     def fetch_metadata(self, aoi_lat: float, aoi_lon: float, start_date, end_date, max_cloud_cover: float = 20.0) -> List[Dict[str, Any]]:
         """
-        Simulates fetching metadata for available Sentinel-2 images over a specific area.
-
-        Args:
-            aoi_lat (float): Latitude of the Area of Interest center.
-            aoi_lon (float): Longitude of the Area of Interest center.
-            start_date (datetime): Start of the search window.
-            end_date (datetime): End of the search window.
-            max_cloud_cover (float): Maximum acceptable cloud coverage percentage (0-100).
-
-        Returns:
-            List[Dict[str, Any]]: A list of dictionaries containing image metadata.
+        Fetches metadata for available Sentinel-2 images over a specific area using GEE.
         """
         results = []
-        current_date = start_date
+        
+        try:
+            # 1. Define Point and Region (Buffer)
+            point = ee.Geometry.Point([aoi_lon, aoi_lat])
+            region = point.buffer(10000).bounds() # 10km buffer approx
 
-        # Simulate finding an image every ~5 days (Sentinel-2 revisit time)
-        while current_date <= end_date:
-            # 80% chance to find an image on a pass day
-            if random.random() > 0.2:
-                cloud_cover = round(random.uniform(0, 100), 2)
-                
-                # Filter by cloud coverage
-                if cloud_cover <= max_cloud_cover:
+            # 2. Filter Collection
+            s2 = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED") \
+                .filterBounds(region) \
+                .filterDate(start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')) \
+                .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', max_cloud_cover)) \
+                .sort('CLOUDY_PIXEL_PERCENTAGE')
+
+            # 3. Get Metadata (Limit to 50 to avoid overloading)
+            # Fetching 'system:index', 'CLOUDY_PIXEL_PERCENTAGE', etc.
+            images_info = s2.limit(50).getInfo()
+
+            if 'features' in images_info:
+                for img in images_info['features']:
+                    props = img['properties']
                     
-                    # Generate a mock unique ID
-                    image_id = f"S2_{current_date.strftime('%Y%m%d')}_T{random.randint(10, 60)}XXX_R{random.randint(0, 100)}_{random.randint(1000, 9999)}"
-                    
+                    # Construct metadata object
                     metadata = {
-                        'image_id': image_id,
-                        'acquisition_date': current_date,
-                        'cloud_coverage': cloud_cover,
+                        'image_id': img['id'], # e.g., COPERNICUS/S2_SR/20210101T...
+                        'acquisition_date': props.get('DATATAKE_IDENTIFIER', '').split('_')[1], # extracting date from ID roughly, or use 'system:time_start'
+                        # Better way to get date:
+                        # 'acquisition_date': datetime.fromtimestamp(props['system:time_start']/1000), 
+                        # But for simplicity let's rely on Django handling strings or convert nicely
+                         
+                        'cloud_coverage': props.get('CLOUDY_PIXEL_PERCENTAGE', 0),
                         'satellite_name': 'Sentinel-2',
-                        'platform': 'Sentinel-2A' if random.random() > 0.5 else 'Sentinel-2B',
+                        'platform': props.get('SPACECRAFT_NAME', 'Sentinel-2'),
                         'processing_level': 'Level-2A',
                         'center_latitude': aoi_lat,
-                        'center_longitude': aoi_lon
+                        'center_longitude': aoi_lon,
+                        'gee_id': img['id'] # Store GEE ID for later processing
                     }
+                    
+                    # Date conversion
+                    # GEE returns time in ms timestamp
+                    import datetime
+                    timestamp = props.get('system:time_start')
+                    if timestamp:
+                        metadata['acquisition_date'] = datetime.datetime.fromtimestamp(timestamp / 1000.0)
+
                     results.append(metadata)
 
-            # Advance 5 days for next potential pass
-            current_date += timedelta(days=5)
+        except Exception as e:
+            print(f"Error fetching GEE data: {e}")
 
         return results

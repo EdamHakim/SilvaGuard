@@ -1,40 +1,26 @@
 from django.core.management.base import BaseCommand
 from satellite_data.models import SatelliteImage, ProcessedImage
-from satellite_data.preprocessing import ImagePreprocessor
-import os
 
 class Command(BaseCommand):
-    help = 'Runs preprocessing on raw satellite images'
+    help = 'Registers images for GEE analysis (bypassing local preprocessing)'
 
     def handle(self, *args, **options):
-        raw_images = SatelliteImage.objects.filter(processed_version__isnull=True)
-        processor = ImagePreprocessor()
+        # In GEE workflow, we don't download/process files locally.
+        # We just mark them as ready by creating a ProcessedImage record.
+        
+        images = SatelliteImage.objects.filter(processed_version__isnull=True)
+        self.stdout.write(f"Found {images.count()} images pending GEE registration...")
 
-        if not raw_images.exists():
-            self.stdout.write(self.style.WARNING('No new images to preprocess.'))
-            return
+        for img in images:
+            if not img.gee_id:
+                self.stdout.write(f"Skipping {img.image_id}: No GEE ID.")
+                continue
+                
+            ProcessedImage.objects.create(
+                satellite_image=img,
+                processed_file_path="GEE_COMPUTED",
+                processed_metadata={'method': 'GEE_SERVER_SIDE'}
+            )
+            self.stdout.write(f"  - Registered {img.image_id} for GEE analysis.")
 
-        self.stdout.write(f"Preprocessing {raw_images.count()} images...")
-
-        for img in raw_images:
-            try:
-                self.stdout.write(f"Processing ID: {img.image_id}")
-                
-                # Mock Path
-                dummy_path = f"raw_data/{img.image_id}.tif"
-                
-                # Run Logic
-                result = processor.process_image(dummy_path)
-                
-                # Save Result
-                ProcessedImage.objects.create(
-                    satellite_image=img,
-                    processed_file_path=f"processed_data/{img.image_id}_clean.tif",
-                    ndvi_mean=0.0, # Will be calculated in analysis phase, or here if we merge logic
-                    processed_metadata=result['metadata']
-                )
-                
-                self.stdout.write(self.style.SUCCESS(f"  - Done."))
-
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f"  - Error: {str(e)}"))
+        self.stdout.write(self.style.SUCCESS("GEE Registration complete."))

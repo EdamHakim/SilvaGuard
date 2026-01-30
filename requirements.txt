@@ -3,3 +3,4 @@ dj-database-url
 python-dotenv
 rasterio
 psycopg2-binary
+earthengine-api
