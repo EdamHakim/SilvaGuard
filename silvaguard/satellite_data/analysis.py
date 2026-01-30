@@ -87,9 +87,50 @@ class VegetationAnalyzer:
                 'mean_ndvi': 0.0, 'min_ndvi': 0.0, 'max_ndvi': 0.0, 'forest_percentage': 0.0
             }
 
+    def get_gee_tile_url(self, gee_asset_id: str) -> str:
+        """
+        Generates a temporary Tile URL from GEE for the 'trees' probability.
+        """
+        try:
+            s2_image = ee.Image(gee_asset_id)
+            region = s2_image.geometry()
+            
+            # Find matching Dynamic World Image
+            dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
+                .filterBounds(region) \
+                .filterDate(s2_image.date(), s2_image.date().advance(1, 'day')) \
+                .filter(ee.Filter.eq('system:index', s2_image.get('system:index')))
+            
+            dw_image = ee.Image(dw_col.first())
+            
+            if not dw_image:
+                 dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
+                    .filterBounds(region) \
+                    .filterDate(s2_image.date().advance(-2, 'hour'), s2_image.date().advance(2, 'hour'))
+                 dw_image = ee.Image(dw_col.first())
+
+            if not dw_image:
+                return ""
+
+            # Class 1 = Trees. Visualize probability.
+            trees_prob = dw_image.select('trees')
+            
+            # Visualization parameters
+            viz_params = {
+                'min': 0,
+                'max': 1,
+                'palette': ['#000000', '#10b981'] # Black to SilvaGuard Green
+            }
+            
+            map_id = trees_prob.getMapId(viz_params)
+            return map_id['tile_fetcher'].url_format
+            
+        except Exception as e:
+            print(f"Failed to get Tile URL: {e}")
+            return ""
+
     def generate_heatmap(self, gee_asset_id: str):
         """
-        For GEE, we don't generate a local heatmap file.
-        Instead, we might return a Tile URL or just a placeholder.
+        Returns the GEE Tile URL.
         """
-        return "GEE_LAYER"
+        return self.get_gee_tile_url(gee_asset_id)

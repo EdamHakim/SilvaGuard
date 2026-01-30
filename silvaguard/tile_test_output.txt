@@ -1,0 +1,4 @@
+Testing Tile URL Generation
+==================================================
+Google Earth Engine initialized successfully.
+No satellite images found with gee_id

@@ -1,7 +1,6 @@
 from django.urls import path
-from . import api_views
+from . import views
 
 urlpatterns = [
-    path('api/aois/', api_views.get_aois, name='get_aois'),
-    path('api/alerts/', api_views.get_alerts, name='get_alerts'),
+    path('api/map-data/', views.api_get_map_data, name='api_map_data'),
 ]

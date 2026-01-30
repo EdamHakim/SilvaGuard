@@ -67,19 +67,83 @@
 <section id="map" class="map-section">
     <div class="container">
         <h2 class="section-title">Interactive Map View</h2>
-        <div class="map-placeholder">
+
+        <!-- Leaflet CSS -->
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+        <!-- Map Container -->
+        <div id="forest-map"
+            style="height: 500px; width: 100%; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+
+        <!-- Leaflet JS -->
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                // Initialize Map
+                var map = L.map('forest-map').setView([0, 0], 2); // Default view
+
+                // Add Dark/Satellite Style Tile Layer
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+                }).addTo(map);
+
+                // Fetch Data
+                fetch('/satellite/api/map-data/')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.features.length > 0) {
+                            // 1. Add Tile Layers (Base Forest Cover)
+                            data.features.forEach(f => {
+                                if (f.properties.type === 'AOI' && f.properties.tile_url) {
+                                    L.tileLayer(f.properties.tile_url, {
+                                        opacity: 0.7,
+                                        attribution: 'Google Earth Engine / Dynamic World'
+                                    }).addTo(map);
+                                }
+                            });
+
+                            // 2. Add Vector Overlays
+                            var geoJsonLayer = L.geoJSON(data, {
+                                pointToLayer: function (feature, latlng) {
+                                    if (feature.properties.type === 'AOI') {
+                                        return L.circle(latlng, {
+                                            color: '#10b981',
+                                            fillOpacity: 0.1,
+                                            radius: (feature.properties.radius_km * 1000)
+                                        });
+                                    } else if (feature.properties.type === 'Alert') {
+                                        return L.circleMarker(latlng, {
+                                            radius: 10,
+                                            fillColor: "#ef4444",
+                                            color: "#ffffff",
+                                            weight: 2,
+                                            fillOpacity: 0.9
+                                        });
+                                    }
+                                },
+                                onEachFeature: function (feature, layer) {
+                                    if (feature.properties.popup) {
+                                        layer.bindPopup(feature.properties.popup);
+                                    }
+                                }
+                            }).addTo(map);
+
+                            map.fitBounds(geoJsonLayer.getBounds());
+                        }
+                    })
+                    .catch(error => console.error('Error loading map data:', error));
+            });
+        </script>
+
+        <div class="risk-meter" style="margin-top: 1rem;">
+            <p class="analytics-label">Map displays monitored Areas of Interest (Green) and Deforestation Alerts (Red).
+            </p>
         </div>
-        <div class="risk-meter">
-            <div class="risk-bar"
-                style="width: 15%; background: linear-gradient(to right, var(--color-success), var(--color-warning));">
-            </div>
-        </div>
-        <div class="risk-meter">
-            <div class="risk-bar" style="width: 8%; background: var(--color-success);"></div>
-        </div>
-        <p class="analytics-label">Overall health status: Excellent</p>
-    </div>
-    </div>
     </div>
 </section>
 
