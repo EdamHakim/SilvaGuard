@@ -129,6 +129,172 @@ class VegetationAnalyzer:
             print(f"Failed to get Tile URL: {e}")
             return ""
 
+    def get_loss_tile_url(self, gee_asset_before: str, gee_asset_after: str) -> str:
+        """
+        Generates a Tile URL highlighting the forest loss areas.
+        """
+        try:
+            img_before = ee.Image(gee_asset_before)
+            img_after = ee.Image(gee_asset_after)
+            
+            # Get Dynamic World for both
+            def get_dw(img):
+                region = img.geometry()
+                dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
+                    .filterBounds(region) \
+                    .filterDate(img.date(), img.date().advance(1, 'day')) \
+                    .filter(ee.Filter.eq('system:index', img.get('system:index')))
+                dw = ee.Image(dw_col.first())
+                if not dw:
+                    dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
+                        .filterBounds(region) \
+                        .filterDate(img.date().advance(-2, 'hour'), img.date().advance(2, 'hour'))
+                    dw = ee.Image(dw_col.first())
+                return dw
+
+            dw_before = get_dw(img_before)
+            dw_after = get_dw(img_after)
+            
+            if not dw_before or not dw_after:
+                return ""
+                
+            # Forest Mask (Prob > 0.5)
+            forest_before = dw_before.select('trees').gt(0.5)
+            forest_after = dw_after.select('trees').gt(0.5)
+            
+            # Loss = Was Forest AND Is Now NOT Forest
+            loss = forest_before.And(forest_after.Not()).rename('loss')
+            
+            # Mask so we only show the loss (1s)
+            loss_masked = loss.updateMask(loss)
+            
+            # Visualization
+            viz_params = {
+                'min': 0,
+                'max': 1,
+                'palette': ['#ef4444'] #SilvaGuard Red
+            }
+            
+            map_id = loss_masked.getMapId(viz_params)
+            return map_id['tile_fetcher'].url_format
+            
+        except Exception as e:
+            print(f"Failed to generate loss tile: {e}")
+            return ""
+
+    def calculate_forest_loss(self, gee_asset_before: str, gee_asset_after: str, region=None) -> dict:
+        """
+        Calculates forest loss in hectares between two dates using GEE.
+        """
+        try:
+            img_before = ee.Image(gee_asset_before)
+            img_after = ee.Image(gee_asset_after)
+            
+            if not region:
+                region = img_after.geometry()
+
+            # Get Dynamic World
+            def get_dw(img):
+                dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
+                    .filterBounds(img.geometry()) \
+                    .filterDate(img.date(), img.date().advance(1, 'day')) \
+                    .filter(ee.Filter.eq('system:index', img.get('system:index')))
+                dw = ee.Image(dw_col.first())
+                if not dw:
+                    dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
+                        .filterBounds(img.geometry()) \
+                        .filterDate(img.date().advance(-2, 'hour'), img.date().advance(2, 'hour'))
+                    dw = ee.Image(dw_col.first())
+                return dw
+
+            dw_before = get_dw(img_before)
+            dw_after = get_dw(img_after)
+            
+            if not dw_before or not dw_after:
+                return {'loss_ha': 0.0, 'loss_percentage': 0.0}
+
+            # Forest Mask (Prob > 0.5)
+            forest_before = dw_before.select('trees').gt(0.5)
+            forest_after = dw_after.select('trees').gt(0.5)
+            
+            # Loss = Was Forest (1) AND Is Now NOT Forest (1)
+            loss = forest_before.And(forest_after.Not()).rename('loss')
+            
+            # Calculate Area using pixelArea()
+            area_image = loss.multiply(ee.Image.pixelArea())
+            
+            stats = area_image.reduceRegion(
+                reducer=ee.Reducer.sum(),
+                geometry=region,
+                scale=10,
+                maxPixels=1e9
+            )
+            
+            loss_sq_m = stats.get('loss').getInfo()
+            loss_ha = (loss_sq_m / 10000.0) if loss_sq_m else 0.0
+            
+            # Initial Forest Area for percentage
+            initial_area_image = forest_before.multiply(ee.Image.pixelArea())
+            initial_stats = initial_area_image.reduceRegion(
+                reducer=ee.Reducer.sum(),
+                geometry=region,
+                scale=10,
+                maxPixels=1e9
+            )
+            initial_forest_sq_m = initial_stats.get('trees').getInfo() if 'trees' in initial_stats.getInfo() else initial_stats.get('constant').getInfo()
+            # Dynamic World select('trees').gt(0.5) might return 'trees' or 'constant' in stats
+            
+            # Fallback for key name
+            if not initial_forest_sq_m:
+                 # Try finding any non-zero value in stats
+                 val_list = list(initial_stats.getInfo().values())
+                 initial_forest_sq_m = val_list[0] if val_list else 0.0
+
+            loss_pct = (loss_ha / (initial_forest_sq_m/10000.0) * 100) if initial_forest_sq_m and initial_forest_sq_m > 0 else 0.0
+
+            return {
+                'loss_ha': loss_ha,
+                'loss_percentage': loss_pct
+            }
+            
+        except Exception as e:
+            print(f"Failed to calculate forest loss: {e}")
+            return {'loss_ha': 0.0, 'loss_percentage': 0.0}
+
+    def get_mosaic_tile_url(self, lat: float, lon: float, radius_km: float) -> str:
+        """
+        Generates a Mosaic Tile URL for a large area.
+        Useful for filling the "whole map".
+        """
+        try:
+            point = ee.Geometry.Point([lon, lat])
+            region = point.buffer(radius_km * 1000)
+            
+            # Use a recent 3-month window for a stable mosaic
+            end_date = ee.Date(ee.Date.now())
+            start_date = end_date.advance(-3, 'month')
+            
+            dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
+                .filterBounds(region) \
+                .filterDate(start_date, end_date)
+            
+            # Mosaic: use 'mode' to get the most frequent label, 
+            # or 'mean' for probabilities. Let's use mean probability for visualization.
+            mosaic = dw_col.select('trees').mean().clip(region)
+            
+            viz_params = {
+                'min': 0,
+                'max': 1,
+                'palette': ['#000000', '#10b981'] # Black to SilvaGuard Green
+            }
+            
+            map_id = mosaic.getMapId(viz_params)
+            return map_id['tile_fetcher'].url_format
+            
+        except Exception as e:
+            print(f"Failed to generate mosaic tile: {e}")
+            return ""
+
     def generate_heatmap(self, gee_asset_id: str):
         """
         Returns the GEE Tile URL.

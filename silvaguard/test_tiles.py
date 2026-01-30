@@ -14,17 +14,22 @@ print("Testing Tile URL Generation")
 print("="*50)
 
 analyzer = VegetationAnalyzer()
-img = SatelliteImage.objects.first()
+img = SatelliteImage.objects.exclude(gee_id__isnull=True).exclude(gee_id='').first()
 
 if img and img.gee_id:
     print(f"Testing with image: {img.gee_id}")
     try:
         tile_url = analyzer.get_gee_tile_url(img.gee_id)
         print(f"\nGenerated Tile URL:")
-        print(tile_url if tile_url else "EMPTY - No URL returned")
+        if tile_url:
+            print(f"✅ SUCCESS: {tile_url[:100]}...")
+        else:
+            print("❌ EMPTY - No URL returned")
     except Exception as e:
-        print(f"ERROR: {e}")
+        print(f"❌ ERROR: {e}")
         import traceback
         traceback.print_exc()
 else:
-    print("No satellite images found with gee_id")
+    print("❌ No satellite images found with gee_id")
+    print(f"Total images: {SatelliteImage.objects.count()}")
+    print(f"Images with gee_id: {SatelliteImage.objects.exclude(gee_id__isnull=True).exclude(gee_id='').count()}")

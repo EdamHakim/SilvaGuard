@@ -12,6 +12,16 @@ def api_get_map_data(request):
     
     features = []
     
+    # Generate a background mosaic for the "whole map" effect
+    from .analysis import VegetationAnalyzer
+    analyzer = VegetationAnalyzer()
+    # Use the first AOI as center, or a default if none
+    center_aoi = aois.first()
+    if center_aoi:
+        global_tile_url = analyzer.get_mosaic_tile_url(center_aoi.latitude, center_aoi.longitude, 1000) # 1000km radius
+    else:
+        global_tile_url = ""
+    
     # Add AOIs as Polygons
     for aoi in aois:
         # Get latest analysis for this AOI to show the layer
@@ -57,13 +67,15 @@ def api_get_map_data(request):
                 "loss_ha": alert.forest_loss_hectares,
                 "loss_pct": alert.loss_percentage,
                 "date": alert.detected_at.strftime("%Y-%m-%d"),
+                "tile_url": alert.loss_map_path, # GEE Loss Tile
                 "popup": f"⚠️ <strong>Deforestation Alert</strong><br>Loss: {alert.forest_loss_hectares:.1f} ha<br>Date: {alert.detected_at.strftime('%Y-%m-%d')}"
             }
         })
 
     geojson = {
         "type": "FeatureCollection",
-        "features": features
+        "features": features,
+        "global_tile_url": global_tile_url
     }
     
     return JsonResponse(geojson)

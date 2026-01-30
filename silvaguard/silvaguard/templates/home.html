@@ -37,28 +37,28 @@
         <h2 class="section-title">Real-Time Metrics</h2>
         <div class="metrics-grid">
             <div class="metric-card">
-                <div class="metric-icon">9,847</div>
+                <div class="metric-icon">{{ total_area_ha }}</div>
                 <h3>Forest Coverage</h3>
-                <div class="metric-value">9,847</div>
+                <div class="metric-value">{{ total_area_ha }}</div>
                 <div class="metric-subtitle">hectares monitored</div>
             </div>
             <div class="metric-card">
-                <div class="metric-icon">92%</div>
+                <div class="metric-icon">{{ avg_health }}%</div>
                 <h3>Vegetation Health</h3>
-                <div class="metric-value">92%</div>
+                <div class="metric-value">{{ avg_health }}%</div>
                 <div class="metric-subtitle">healthy coverage</div>
             </div>
             <div class="metric-card">
-                <div class="metric-icon">1,234</div>
-                <h3>Species Count</h3>
-                <div class="metric-value">1,234</div>
-                <div class="metric-subtitle">unique species identified</div>
+                <div class="metric-icon">{{ active_alerts }}</div>
+                <h3>Active Alerts</h3>
+                <div class="metric-value">{{ active_alerts }}</div>
+                <div class="metric-subtitle">detected hotspots</div>
             </div>
             <div class="metric-card">
-                <div class="metric-icon">3.2C</div>
-                <h3>Avg Temperature</h3>
-                <div class="metric-value">3.2</div>
-                <div class="metric-subtitle">degrees change</div>
+                <div class="metric-icon">{{ total_loss }}</div>
+                <h3>Total Loss</h3>
+                <div class="metric-value">{{ total_loss }}</div>
+                <div class="metric-subtitle">hectares deforested</div>
             </div>
         </div>
     </div>
@@ -66,7 +66,7 @@
 
 <section id="map" class="map-section">
     <div class="container">
-        <h2 class="section-title">Interactive Map View</h2>
+        <h2 class="section-title">Interactive Monitoring</h2>
 
         <!-- Leaflet CSS -->
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -74,7 +74,8 @@
 
         <!-- Map Container -->
         <div id="forest-map"
-            style="height: 500px; width: 100%; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+            style="height: 600px; width: 100%; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 1px solid rgba(16, 185, 129, 0.2);">
+        </div>
 
         <!-- Leaflet JS -->
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -82,61 +83,82 @@
 
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                // Initialize Map
-                var map = L.map('forest-map').setView([0, 0], 2); // Default view
+                var map = L.map('forest-map').setView([48.8566, 2.3522], 6);
 
-                // Add Dark/Satellite Style Tile Layer
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                var baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; CARTO',
                     subdomains: 'abcd',
                     maxZoom: 20
                 }).addTo(map);
 
-                // Fetch Data
+                // Layer Groups
+                var forestLayers = L.layerGroup().addTo(map);
+                var lossLayers = L.layerGroup().addTo(map);
+                var alertMarkers = L.layerGroup().addTo(map);
+                var aoiBoundaries = L.layerGroup().addTo(map);
+
+                var overlayMaps = {
+                    "Forest Cover (Live)": forestLayers,
+                    "Deforestation Hotspots": lossLayers,
+                    "Markers": alertMarkers,
+                    "Monitored Areas": aoiBoundaries
+                };
+
+                L.control.layers(null, overlayMaps, { collapsed: false }).addTo(map);
+
                 fetch('/satellite/api/map-data/')
                     .then(response => response.json())
                     .then(data => {
+                        // 0. Add Regional Baseline (Whole Map)
+                        if (data.global_tile_url) {
+                            L.tileLayer(data.global_tile_url, {
+                                opacity: 0.4,
+                                attribution: 'GEE Mosaic'
+                            }).addTo(map);
+                        }
+
                         if (data.features.length > 0) {
-                            // 1. Add Tile Layers (Base Forest Cover)
                             data.features.forEach(f => {
+                                // 1. Forest Cover Tile
                                 if (f.properties.type === 'AOI' && f.properties.tile_url) {
                                     L.tileLayer(f.properties.tile_url, {
                                         opacity: 0.7,
-                                        attribution: 'Google Earth Engine / Dynamic World'
-                                    }).addTo(map);
+                                        attribution: 'GEE'
+                                    }).addTo(forestLayers);
+
+                                    // AOI Boundary
+                                    L.circle([f.geometry.coordinates[1], f.geometry.coordinates[0]], {
+                                        color: '#10b981',
+                                        fillOpacity: 0.05,
+                                        radius: (f.properties.radius_km * 1000)
+                                    }).bindPopup(f.properties.popup).addTo(aoiBoundaries);
+                                }
+
+                                // 2. Alert & Loss Layer
+                                if (f.properties.type === 'Alert') {
+                                    if (f.properties.tile_url) {
+                                        L.tileLayer(f.properties.tile_url, {
+                                            opacity: 0.9,
+                                            attribution: 'GEE Loss'
+                                        }).addTo(lossLayers);
+                                    }
+
+                                    L.circleMarker([f.geometry.coordinates[1], f.geometry.coordinates[0]], {
+                                        radius: 12,
+                                        fillColor: "#ef4444",
+                                        color: "#ffffff",
+                                        weight: 2,
+                                        fillOpacity: 0.8
+                                    }).bindPopup(f.properties.popup).addTo(alertMarkers);
                                 }
                             });
 
-                            // 2. Add Vector Overlays
-                            var geoJsonLayer = L.geoJSON(data, {
-                                pointToLayer: function (feature, latlng) {
-                                    if (feature.properties.type === 'AOI') {
-                                        return L.circle(latlng, {
-                                            color: '#10b981',
-                                            fillOpacity: 0.1,
-                                            radius: (feature.properties.radius_km * 1000)
-                                        });
-                                    } else if (feature.properties.type === 'Alert') {
-                                        return L.circleMarker(latlng, {
-                                            radius: 10,
-                                            fillColor: "#ef4444",
-                                            color: "#ffffff",
-                                            weight: 2,
-                                            fillOpacity: 0.9
-                                        });
-                                    }
-                                },
-                                onEachFeature: function (feature, layer) {
-                                    if (feature.properties.popup) {
-                                        layer.bindPopup(feature.properties.popup);
-                                    }
-                                }
-                            }).addTo(map);
-
-                            map.fitBounds(geoJsonLayer.getBounds());
+                            // Zoom to fit
+                            var bounds = L.geoJSON(data).getBounds();
+                            map.fitBounds(bounds, { padding: [50, 50] });
                         }
                     })
-                    .catch(error => console.error('Error loading map data:', error));
+                    .catch(error => console.error('Error:', error));
             });
         </script>
 
