@@ -1,187 +1,194 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forest Monitoring Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <div class="logo">Forest Watch</div>
-                <nav class="navbar">
-                    <a href="#overview" class="nav-link">Overview</a>
-                    <a href="#map" class="nav-link">Map</a>
-                    <a href="#analytics" class="nav-link">Analytics</a>
-                    <a href="#alerts" class="nav-link">Alerts</a>
-                    <a href="login.html" class="nav-link">Login</a>
-                </nav>
-            </div>
-        </div>
-    </header>
+{% extends 'base.html' %}
 
-    <section class="hero">
-        <div class="container">
-            <div class="hero-content">
-                <h1>Forest Monitoring Dashboard</h1>
-                <p>Real-time tracking and analysis of forest health, biodiversity, and environmental metrics</p>
-                <button class="cta-button">Start Monitoring</button>
-            </div>
-        </div>
-    </section>
+{% block title %}Forest Monitoring Dashboard{% endblock %}
 
-    <section id="overview" class="dashboard-overview">
-        <div class="container">
-            <h2 class="section-title">Real-Time Metrics</h2>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-icon">9,847</div>
-                    <h3>Forest Coverage</h3>
-                    <div class="metric-value">9,847</div>
-                    <div class="metric-subtitle">hectares monitored</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-icon">92%</div>
-                    <h3>Vegetation Health</h3>
-                    <div class="metric-value">92%</div>
-                    <div class="metric-subtitle">healthy coverage</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-icon">1,234</div>
-                    <h3>Species Count</h3>
-                    <div class="metric-value">1,234</div>
-                    <div class="metric-subtitle">unique species identified</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-icon">3.2C</div>
-                    <h3>Avg Temperature</h3>
-                    <div class="metric-value">3.2</div>
-                    <div class="metric-subtitle">degrees change</div>
-                </div>
-            </div>
+{% block content %}
+<header class="header">
+    <div class="container">
+        <div class="header-content">
+            <div class="logo">Forest Watch</div>
+            <nav class="navbar">
+                <a href="#overview" class="nav-link">Overview</a>
+                <a href="#map" class="nav-link">Map</a>
+                <a href="#analytics" class="nav-link">Analytics</a>
+                <a href="#alerts" class="nav-link">Alerts</a>
+                {% if user.is_authenticated %}
+                <a href="{% url 'logout' %}" class="nav-link">Logout</a>
+                {% else %}
+                <a href="{% url 'login' %}" class="nav-link">Login</a>
+                {% endif %}
+            </nav>
         </div>
-    </section>
+    </div>
+</header>
 
-    <section id="map" class="map-section">
-        <div class="container">
-            <h2 class="section-title">Interactive Map View</h2>
-            <div class="map-placeholder">
-                <p>Live satellite map integration area</p>
-                <p class="map-subtitle">Real-time forest monitoring with satellite imagery and thermal data</p>
-            </div>
+<section class="hero">
+    <div class="container">
+        <div class="hero-content">
+            <h1>Forest Monitoring Dashboard</h1>
+            <p>Real-time tracking and analysis of forest health, biodiversity, and environmental metrics</p>
+            <button class="cta-button">Start Monitoring</button>
         </div>
-    </section>
+    </div>
+</section>
 
-    <section id="analytics" class="analytics-section">
-        <div class="container">
-            <h2 class="section-title">Analytics & Trends</h2>
-            <div class="analytics-grid">
-                <div class="analytics-card">
-                    <h3>Vegetation Index</h3>
-                    <p class="analytics-subtitle">Last 30 days</p>
-                    <div class="chart-placeholder">
-                        <div class="bar" style="height: 45%;"></div>
-                        <div class="bar" style="height: 52%;"></div>
-                        <div class="bar" style="height: 58%;"></div>
-                        <div class="bar" style="height: 62%;"></div>
-                        <div class="bar" style="height: 68%;"></div>
-                        <div class="bar" style="height: 72%;"></div>
-                    </div>
-                    <p class="analytics-label">Trend: Increasing health</p>
-                </div>
-                <div class="analytics-card">
-                    <h3>Carbon Sequestration</h3>
-                    <p class="analytics-subtitle">Monthly estimate</p>
-                    <div class="chart-placeholder">
-                        <div class="bar" style="height: 65%;"></div>
-                        <div class="bar" style="height: 70%;"></div>
-                        <div class="bar" style="height: 68%;"></div>
-                        <div class="bar" style="height: 75%;"></div>
-                        <div class="bar" style="height: 82%;"></div>
-                        <div class="bar" style="height: 88%;"></div>
-                    </div>
-                    <p class="analytics-label">1,456 tons CO2 absorbed</p>
-                </div>
-                <div class="analytics-card">
-                    <h3>Risk Assessment</h3>
-                    <p class="analytics-subtitle">Threat level</p>
-                    <div class="risk-meter">
-                        <div class="risk-bar" style="width: 28%;">Low</div>
-                    </div>
-                    <div class="risk-meter">
-                        <div class="risk-bar" style="width: 15%; background: linear-gradient(to right, var(--color-success), var(--color-warning));"></div>
-                    </div>
-                    <div class="risk-meter">
-                        <div class="risk-bar" style="width: 8%; background: var(--color-success);"></div>
-                    </div>
-                    <p class="analytics-label">Overall health status: Excellent</p>
-                </div>
+<section id="overview" class="dashboard-overview">
+    <div class="container">
+        <h2 class="section-title">Real-Time Metrics</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon">9,847</div>
+                <h3>Forest Coverage</h3>
+                <div class="metric-value">9,847</div>
+                <div class="metric-subtitle">hectares monitored</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">92%</div>
+                <h3>Vegetation Health</h3>
+                <div class="metric-value">92%</div>
+                <div class="metric-subtitle">healthy coverage</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">1,234</div>
+                <h3>Species Count</h3>
+                <div class="metric-value">1,234</div>
+                <div class="metric-subtitle">unique species identified</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">3.2C</div>
+                <h3>Avg Temperature</h3>
+                <div class="metric-value">3.2</div>
+                <div class="metric-subtitle">degrees change</div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <section id="alerts" class="alerts-section">
-        <div class="container">
-            <h2 class="section-title">Active Alerts</h2>
-            <div class="alerts-list">
-                <div class="alert-item alert-low">
-                    <div class="alert-header">
-                        <h4>Seasonal Growth Detected</h4>
-                        <span class="alert-badge alert-badge-low">Low</span>
-                    </div>
-                    <p class="alert-time">2 hours ago</p>
-                    <p class="alert-description">Vegetation growth increased by 12% in the northern sector. This is expected seasonal growth pattern.</p>
-                </div>
-                <div class="alert-item alert-medium">
-                    <div class="alert-header">
-                        <h4>Water Stress Moderate</h4>
-                        <span class="alert-badge alert-badge-medium">Medium</span>
-                    </div>
-                    <p class="alert-time">4 hours ago</p>
-                    <p class="alert-description">Soil moisture levels in central zone have decreased to 62%. Monitor for potential intervention.</p>
-                </div>
-                <div class="alert-item alert-low">
-                    <div class="alert-header">
-                        <h4>Wildlife Activity Normal</h4>
-                        <span class="alert-badge alert-badge-low">Low</span>
-                    </div>
-                    <p class="alert-time">8 hours ago</p>
-                    <p class="alert-description">Camera traps recorded 47 species movements today, all within expected parameters for this season.</p>
-                </div>
-            </div>
+<section id="map" class="map-section">
+    <div class="container">
+        <h2 class="section-title">Interactive Map View</h2>
+        <div class="map-placeholder">
+            <p>Live satellite map integration area</p>
+            <p class="map-subtitle">Real-time forest monitoring with satellite imagery and thermal data</p>
         </div>
-    </section>
+    </div>
+</section>
 
-    <section class="about-section">
-        <div class="container">
-            <h2 class="section-title">Our Mission</h2>
-            <div class="about-content">
-                <div class="about-card">
-                    <h3>Real-Time Monitoring</h3>
-                    <p>Continuous satellite and sensor data collection providing live insights into forest health and environmental changes.</p>
+<section id="analytics" class="analytics-section">
+    <div class="container">
+        <h2 class="section-title">Analytics & Trends</h2>
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <h3>Vegetation Index</h3>
+                <p class="analytics-subtitle">Last 30 days</p>
+                <div class="chart-placeholder">
+                    <div class="bar" style="height: 45%;"></div>
+                    <div class="bar" style="height: 52%;"></div>
+                    <div class="bar" style="height: 58%;"></div>
+                    <div class="bar" style="height: 62%;"></div>
+                    <div class="bar" style="height: 68%;"></div>
+                    <div class="bar" style="height: 72%;"></div>
                 </div>
-                <div class="about-card">
-                    <h3>Data-Driven Decision Making</h3>
-                    <p>Advanced analytics and predictive models help managers make informed decisions about forest conservation and management.</p>
+                <p class="analytics-label">Trend: Increasing health</p>
+            </div>
+            <div class="analytics-card">
+                <h3>Carbon Sequestration</h3>
+                <p class="analytics-subtitle">Monthly estimate</p>
+                <div class="chart-placeholder">
+                    <div class="bar" style="height: 65%;"></div>
+                    <div class="bar" style="height: 70%;"></div>
+                    <div class="bar" style="height: 68%;"></div>
+                    <div class="bar" style="height: 75%;"></div>
+                    <div class="bar" style="height: 82%;"></div>
+                    <div class="bar" style="height: 88%;"></div>
                 </div>
-                <div class="about-card">
-                    <h3>Biodiversity Protection</h3>
-                    <p>Comprehensive species tracking and habitat monitoring ensure ecosystem resilience and long-term conservation success.</p>
+                <p class="analytics-label">1,456 tons CO2 absorbed</p>
+            </div>
+            <div class="analytics-card">
+                <h3>Risk Assessment</h3>
+                <p class="analytics-subtitle">Threat level</p>
+                <div class="risk-meter">
+                    <div class="risk-bar" style="width: 28%;">Low</div>
                 </div>
+                <div class="risk-meter">
+                    <div class="risk-bar"
+                        style="width: 15%; background: linear-gradient(to right, var(--color-success), var(--color-warning));">
+                    </div>
+                </div>
+                <div class="risk-meter">
+                    <div class="risk-bar" style="width: 8%; background: var(--color-success);"></div>
+                </div>
+                <p class="analytics-label">Overall health status: Excellent</p>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <p>Forest Watch Dashboard</p>
-                <p class="footer-message">Protecting forests, preserving biodiversity, securing our future</p>
-                <p>&copy; 2026 Forest Watch. All rights reserved.</p>
+<section id="alerts" class="alerts-section">
+    <div class="container">
+        <h2 class="section-title">Active Alerts</h2>
+        <div class="alerts-list">
+            <div class="alert-item alert-low">
+                <div class="alert-header">
+                    <h4>Seasonal Growth Detected</h4>
+                    <span class="alert-badge alert-badge-low">Low</span>
+                </div>
+                <p class="alert-time">2 hours ago</p>
+                <p class="alert-description">Vegetation growth increased by 12% in the northern sector. This is expected
+                    seasonal growth pattern.</p>
+            </div>
+            <div class="alert-item alert-medium">
+                <div class="alert-header">
+                    <h4>Water Stress Moderate</h4>
+                    <span class="alert-badge alert-badge-medium">Medium</span>
+                </div>
+                <p class="alert-time">4 hours ago</p>
+                <p class="alert-description">Soil moisture levels in central zone have decreased to 62%. Monitor for
+                    potential intervention.</p>
+            </div>
+            <div class="alert-item alert-low">
+                <div class="alert-header">
+                    <h4>Wildlife Activity Normal</h4>
+                    <span class="alert-badge alert-badge-low">Low</span>
+                </div>
+                <p class="alert-time">8 hours ago</p>
+                <p class="alert-description">Camera traps recorded 47 species movements today, all within expected
+                    parameters for this season.</p>
             </div>
         </div>
-    </footer>
-</body>
-</html>
+    </div>
+</section>
+
+<section class="about-section">
+    <div class="container">
+        <h2 class="section-title">Our Mission</h2>
+        <div class="about-content">
+            <div class="about-card">
+                <h3>Real-Time Monitoring</h3>
+                <p>Continuous satellite and sensor data collection providing live insights into forest health and
+                    environmental changes.</p>
+            </div>
+            <div class="about-card">
+                <h3>Data-Driven Decision Making</h3>
+                <p>Advanced analytics and predictive models help managers make informed decisions about forest
+                    conservation and management.</p>
+            </div>
+            <div class="about-card">
+                <h3>Biodiversity Protection</h3>
+                <p>Comprehensive species tracking and habitat monitoring ensure ecosystem resilience and long-term
+                    conservation success.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-content">
+            <p>Forest Watch Dashboard</p>
+            <p class="footer-message">Protecting forests, preserving biodiversity, securing our future</p>
+            <p>&copy; 2026 Forest Watch. All rights reserved.</p>
+        </div>
+    </div>
+</footer>
+{% endblock %}
