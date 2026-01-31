@@ -4,3 +4,5 @@ python-dotenv
 rasterio
 psycopg2-binary
 earthengine-api
+google-auth
+requests

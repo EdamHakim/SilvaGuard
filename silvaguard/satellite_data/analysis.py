@@ -1,4 +1,5 @@
 import ee
+import datetime
 from .gee_utils import initialize_gee
 
 class VegetationAnalyzer:
@@ -60,7 +61,7 @@ class VegetationAnalyzer:
                 reducer=ee.Reducer.mean(),
                 geometry=region,
                 scale=20,
-                maxPixels=1e9
+                maxPixels=1e12
             )
             
             forest_fraction = stats.get('FOREST').getInfo()
@@ -70,7 +71,7 @@ class VegetationAnalyzer:
                 reducer=ee.Reducer.mean(),
                 geometry=region,
                 scale=20,
-                maxPixels=1e9
+                maxPixels=1e12
             )
             mean_tree_prob = mean_prob_stats.get('trees').getInfo()
 
@@ -227,7 +228,7 @@ class VegetationAnalyzer:
                 reducer=ee.Reducer.sum(),
                 geometry=region,
                 scale=10,
-                maxPixels=1e9
+                maxPixels=1e12
             )
             
             loss_sq_m = stats.get('loss').getInfo()
@@ -239,7 +240,7 @@ class VegetationAnalyzer:
                 reducer=ee.Reducer.sum(),
                 geometry=region,
                 scale=10,
-                maxPixels=1e9
+                maxPixels=1e12
             )
             initial_forest_sq_m = initial_stats.get('trees').getInfo() if 'trees' in initial_stats.getInfo() else initial_stats.get('constant').getInfo()
             # Dynamic World select('trees').gt(0.5) might return 'trees' or 'constant' in stats
@@ -261,26 +262,30 @@ class VegetationAnalyzer:
             print(f"Failed to calculate forest loss: {e}")
             return {'loss_ha': 0.0, 'loss_percentage': 0.0}
 
-    def get_mosaic_tile_url(self, lat: float, lon: float, radius_km: float) -> str:
+    def get_mosaic_tile_url(self, lat: float = None, lon: float = None, radius_km: float = None) -> str:
         """
-        Generates a Mosaic Tile URL for a large area.
-        Useful for filling the "whole map".
+        Generates a Mosaic Tile URL.
+        If lat/lon/radius are provided, it clips to that area.
+        Otherwise, it returns a global mosaic.
         """
         try:
-            point = ee.Geometry.Point([lon, lat])
-            region = point.buffer(radius_km * 1000)
-            
             # Use a recent 3-month window for a stable mosaic
-            end_date = ee.Date(ee.Date.now())
+            now_str = datetime.datetime.now().strftime('%Y-%m-%d')
+            end_date = ee.Date(now_str)
             start_date = end_date.advance(-3, 'month')
             
             dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1") \
-                .filterBounds(region) \
                 .filterDate(start_date, end_date)
             
-            # Mosaic: use 'mode' to get the most frequent label, 
-            # or 'mean' for probabilities. Let's use mean probability for visualization.
-            mosaic = dw_col.select('trees').mean().clip(region)
+            if lat is not None and lon is not None and radius_km is not None:
+                point = ee.Geometry.Point([lon, lat])
+                region = point.buffer(radius_km * 1000)
+                dw_col = dw_col.filterBounds(region)
+                # For specific regions, we can be more aggressive with mean/median
+                mosaic = dw_col.select('trees').mean().clip(region)
+            else:
+                # Global Mode: Use a lower resolution mean for performance
+                mosaic = dw_col.select('trees').mean()
             
             viz_params = {
                 'min': 0,

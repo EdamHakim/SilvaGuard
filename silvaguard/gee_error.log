@@ -1,8 +1,7 @@
 FAILED to initialize Google Earth Engine.
 Key Path: None
-Error: module 'ee.data' has no attribute '_credentials'
+Error: GOOGLE_APPLICATION_CREDENTIALS not set in environment.
 Traceback (most recent call last):
-  File "D:\Everything\Hackathons\ActInSpace\SilvaGuard\silvaguard\satellite_data\gee_utils.py", line 15, in initialize_gee
-    if ee.data._credentials:
-       ^^^^^^^^^^^^^^^^^^^^
-AttributeError: module 'ee.data' has no attribute '_credentials'. Did you mean: 'credentials_lib'?
+  File "D:\Everything\Hackathons\ActInSpace\SilvaGuard\silvaguard\satellite_data\gee_utils.py", line 18, in initialize_gee
+    raise Exception("GOOGLE_APPLICATION_CREDENTIALS not set in environment.")
+Exception: GOOGLE_APPLICATION_CREDENTIALS not set in environment.

@@ -104,17 +104,25 @@
                     "Monitored Areas": aoiBoundaries
                 };
 
-                L.control.layers(null, overlayMaps, { collapsed: false }).addTo(map);
+                var layerControl = L.control.layers(null, overlayMaps, { collapsed: false }).addTo(map);
+
+                // Add Loading Indicator (Simple Console for now, can be UI)
+                console.log("SilvaGuard: Initializing Monitor...");
 
                 fetch('/satellite/api/map-data/')
                     .then(response => response.json())
                     .then(data => {
+                        console.log("SilvaGuard: Map data received", data);
+
                         // 0. Add Regional Baseline (Whole Map)
-                        if (data.global_tile_url) {
-                            L.tileLayer(data.global_tile_url, {
-                                opacity: 0.4,
+                        if (data.global_tile_url && data.global_tile_url.trim() !== '') {
+                            console.log("SilvaGuard: Loading Global Forest Baseline...");
+                            var globalMosaic = L.tileLayer(data.global_tile_url, {
+                                opacity: 0.6,
                                 attribution: 'GEE Mosaic'
-                            }).addTo(map);
+                            });
+                            globalMosaic.addTo(map);
+                            layerControl.addOverlay(globalMosaic, "Global Forest Baseline");
                         }
 
                         if (data.features.length > 0) {
@@ -154,8 +162,23 @@
                             });
 
                             // Zoom to fit
-                            var bounds = L.geoJSON(data).getBounds();
-                            map.fitBounds(bounds, { padding: [50, 50] });
+                            try {
+                                if (data.features && data.features.length > 0) {
+                                    var geoJsonLayer = L.geoJSON(data);
+                                    var bounds = geoJsonLayer.getBounds();
+                                    if (bounds.isValid()) {
+                                        map.fitBounds(bounds, { padding: [50, 50] });
+                                    }
+                                } else {
+                                    console.log("SilvaGuard: Global mode - World View");
+                                    map.setView([20, 0], 2); // World center sort of
+                                }
+                            } catch (e) {
+                                console.error("SilvaGuard: fitBounds failed", e);
+                            }
+                        } else {
+                            console.warn("SilvaGuard: No features found in API response");
+                            map.setView([20, 0], 2); // Fallback to world view
                         }
                     })
                     .catch(error => console.error('Error:', error));

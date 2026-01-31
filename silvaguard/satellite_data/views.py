@@ -13,14 +13,21 @@ def api_get_map_data(request):
     features = []
     
     # Generate a background mosaic for the "whole map" effect
-    from .analysis import VegetationAnalyzer
-    analyzer = VegetationAnalyzer()
-    # Use the first AOI as center, or a default if none
-    center_aoi = aois.first()
-    if center_aoi:
-        global_tile_url = analyzer.get_mosaic_tile_url(center_aoi.latitude, center_aoi.longitude, 1000) # 1000km radius
-    else:
-        global_tile_url = ""
+    global_tile_url = cache.get('global_mosaic_tile_url') # Try to get from cache first
+
+    if not global_tile_url:
+        from .analysis import VegetationAnalyzer
+        analyzer = VegetationAnalyzer()
+        center_aoi = aois.first()
+        if center_aoi:
+            # Regional focus
+            global_tile_url = analyzer.get_mosaic_tile_url(center_aoi.latitude, center_aoi.longitude, 500) # Changed radius to 500km
+        else:
+            # Global focus if no AOIs exist
+            global_tile_url = analyzer.get_mosaic_tile_url() # Call without arguments for global mosaic
+        
+        if global_tile_url:
+            cache.set('global_mosaic_tile_url', global_tile_url, 3600) # Cache for 1 hour (3600 seconds)
     
     # Add AOIs as Polygons
     for aoi in aois:
