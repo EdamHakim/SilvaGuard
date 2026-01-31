@@ -7,12 +7,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}SilvaGuard{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
 
 <body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">SilvaGuard</div>
+                <nav class="navbar">
+                    <a href="{% url 'home' %}" class="nav-link">Dashboard</a>
+                    <a href="{% url 'aoi_list' %}" class="nav-link">Manage Zones</a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'logout' %}" class="nav-link">Logout</a>
+                    {% else %}
+                    <a href="{% url 'login' %}" class="nav-link">Login</a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </header>
+
     {% block content %}
     {% endblock %}
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>SilvaGuard Dashboard</p>
+                <p class="footer-message">Protecting forests, preserving biodiversity, securing our future</p>
+                <p>&copy; 2026 SilvaGuard. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
 
     {% block extra_js %}{% endblock %}
 </body>

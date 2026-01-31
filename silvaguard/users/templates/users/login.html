@@ -1,162 +1,73 @@
 {% extends 'base.html' %}
-{% load static %}
 
 {% block title %}Login - SilvaGuard{% endblock %}
 
-{% block extra_css %}
-<style>
-    body {
-        margin: 0;
-        padding: 0;
-        font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: radial-gradient(circle at top left, #064e3b, #022c22);
-        height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-    }
-
-    .login-container {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(16, 185, 129, 0.2);
-        padding: 3rem;
-        border-radius: 24px;
-        width: 100%;
-        max-width: 420px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        text-align: center;
-    }
-
-    .logo {
-        font-size: 2rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
-    }
-
-    .tagline {
-        color: #94a3b8;
-        font-size: 0.875rem;
-        margin-bottom: 2.5rem;
-    }
-
-    .form-group {
-        margin-bottom: 1.5rem;
-        text-align: left;
-    }
-
-    .form-group label {
-        display: block;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #10b981;
-        margin-bottom: 0.5rem;
-        font-weight: 600;
-    }
-
-    .form-control {
-        width: 100%;
-        background: rgba(0, 0, 0, 0.2);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        padding: 0.75rem 1rem;
-        border-radius: 12px;
-        color: #fff;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        box-sizing: border-box;
-    }
-
-    .form-control:focus {
-        outline: none;
-        border-color: #10b981;
-        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
-        background: rgba(0, 0, 0, 0.4);
-    }
-
-    .login-btn {
-        width: 100%;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-        border: none;
-        padding: 1rem;
-        border-radius: 12px;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-        margin-top: 1rem;
-    }
-
-    .login-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
-    }
-
-    .login-btn:active {
-        transform: translateY(0);
-    }
-
-    .footer-links {
-        margin-top: 2rem;
-        font-size: 0.875rem;
-        color: #94a3b8;
-    }
-
-    .footer-links a {
-        color: #10b981;
-        text-decoration: none;
-        font-weight: 500;
-    }
-
-    .footer-links a:hover {
-        text-decoration: underline;
-    }
-
-    .errorlist {
-        list-style: none;
-        padding: 0;
-        margin: 0 0 1rem 0;
-        color: #f87171;
-        font-size: 0.875rem;
-        text-align: left;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="login-container">
-    <div class="logo">SilvaGuard</div>
-    <div class="tagline">Satellite-Powered Forest Protection</div>
+<section class="login-section">
+    <div class="login-container">
+        <div class="login-card">
+            <h1 class="login-title">Sign In</h1>
+            <p class="login-subtitle">Access the Forest Monitoring Dashboard</p>
 
-    <form method="post">
-        {% csrf_token %}
+            <form class="login-form" method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                {% if form.errors %}
+                <p class="error-message">Your username and password didn't match. Please try again.</p>
+                {% endif %}
+                <div class="form-group">
+                    <label for="id_username" class="form-label">Username</label>
+                    <input type="text" id="id_username" name="username" class="form-input" placeholder="Username"
+                        required>
+                </div>
 
-        {% if form.non_field_errors %}
-        {{ form.non_field_errors }}
-        {% endif %}
+                <div class="form-group">
+                    <label for="id_password" class="form-label">Password</label>
+                    <input type="password" id="id_password" name="password" class="form-input"
+                        placeholder="Enter your password" required>
+                </div>
 
-        <div class="form-group">
-            <label for="{{ form.username.id_for_label }}">Username</label>
-            <input type="text" name="username" id="{{ form.username.id_for_label }}" class="form-control"
-                placeholder="Enter your username" required>
+                <!--
+                    <div class="form-group checkbox">
+                        <input 
+                            type="checkbox" 
+                            id="remember" 
+                            name="remember"
+                            class="form-checkbox"
+                        >
+                        <label for="remember" class="checkbox-label">Remember me</label>
+                    </div>
+                    -->
+
+                <button type="submit" class="login-button">Sign In</button>
+
+                <input type="hidden" name="next" value="{{ next }}" />
+            </form>
+
+            <div class="login-footer">
+                <p>Don't have an account? <a href="#" class="footer-link">Create one</a></p>
+                <p><a href="#" class="footer-link">Forgot your password?</a></p>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="{{ form.password.id_for_label }}">Password</label>
-            <input type="password" name="password" id="{{ form.password.id_for_label }}" class="form-control"
-                placeholder="••••••••" required>
+        <div class="login-info">
+            <h2>Forest Monitoring Dashboard</h2>
+            <p>Real-time tracking and analysis of forest health, biodiversity, and environmental metrics</p>
+            <ul class="info-list">
+                <li>Live satellite monitoring</li>
+                <li>Vegetation health tracking</li>
+                <li>Species identification</li>
+                <li>Climate data analysis</li>
+            </ul>
         </div>
+    </div>
+</section>
 
-        <input type="hidden" name="next" value="{{ next }}">
-
-        <button type="submit" class="login-btn">Secure Login</button>
-    </form>
-</div>
+<footer class="footer">
+    <div class="container">
+        <div class="footer-content">
+            <p>SilvaGuard Dashboard</p>
+            <p>&copy; 2026 SilvaGuard. All rights reserved.</p>
+        </div>
+    </div>
+</footer>
 {% endblock %}

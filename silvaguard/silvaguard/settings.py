@@ -31,7 +31,12 @@ SECRET_KEY = 'django-insecure-refh%e0nlj7rm_9g@c&+jjqpkuw(h(%7!qe$$-vq8r%e1ki=rz
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
 
 
 # Application definition
@@ -140,4 +145,10 @@ AUTH_USER_MODEL = 'users.CustomUser'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Development Session/CSRF Tweaks
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_AGE = 1209600 # 2 weeks
+CSRF_COOKIE_AGE = 1209600
+CSRF_USE_SESSIONS = False # Keep as False for compatibility in local dev
 

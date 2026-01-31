@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Monitored Zones - SilvaGuard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .aoi-container {
+        padding: 4rem 0;
+        background-color: var(--color-gray-light);
+        min-height: calc(100vh - 200px);
+    }
+
+    .aoi-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3rem;
+    }
+
+    .aoi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 2rem;
+    }
+
+    .aoi-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .aoi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .aoi-name {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-forest-dark);
+        margin-bottom: 1rem;
+    }
+
+    .aoi-details {
+        font-size: 0.875rem;
+        color: var(--color-gray-dark);
+        margin-bottom: 1.5rem;
+    }
+
+    .aoi-detail-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .aoi-label {
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .aoi-value {
+        color: #1a4d2e;
+    }
+
+    .aoi-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .btn-create {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: opacity 0.2s;
+    }
+
+    .btn-create:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 5rem 2rem;
+        background: white;
+        border-radius: 20px;
+        border: 2px dashed #cbd5e1;
+    }
+
+    .empty-state h3 {
+        color: #1e293b;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state p {
+        color: #64748b;
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="aoi-container">
+    <div class="container">
+        <div class="aoi-header">
+            <h1 class="section-title" style="margin-bottom: 0; text-align: left;">Monitoring Zones</h1>
+            <a href="{% url 'aoi_create' %}" class="btn-create">Add New Zone</a>
+        </div>
+
+        {% if aois %}
+        <div class="aoi-grid">
+            {% for aoi in aois %}
+            <div class="aoi-card">
+                <div class="aoi-name">{{ aoi.name }}</div>
+                <div class="aoi-details">
+                    <div class="aoi-detail-item">
+                        <span class="aoi-label">Latitude</span>
+                        <span class="aoi-value">{{ aoi.latitude|floatformat:4 }}</span>
+                    </div>
+                    <div class="aoi-detail-item">
+                        <span class="aoi-label">Longitude</span>
+                        <span class="aoi-value">{{ aoi.longitude|floatformat:4 }}</span>
+                    </div>
+                    <div class="aoi-detail-item">
+                        <span class="aoi-label">Radius</span>
+                        <span class="aoi-value">{{ aoi.radius_km }} km</span>
+                    </div>
+                    <div class="aoi-detail-item">
+                        <span class="aoi-label">Added On</span>
+                        <span class="aoi-value">{{ aoi.created_at|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+                <div class="aoi-actions">
+                    <a href="#" style="color: #64748b; font-size: 0.875rem;">View Analytics</a>
+                    <a href="#" style="color: #ef4444; font-size: 0.875rem; margin-left: auto;">Stop Monitoring</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <h3>No Monitoring Zones Yet</h3>
+            <p>Start by defining the first area you want to protect using satellite imagery.</p>
+            <a href="{% url 'aoi_create' %}" class="btn-create">Define First Zone</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

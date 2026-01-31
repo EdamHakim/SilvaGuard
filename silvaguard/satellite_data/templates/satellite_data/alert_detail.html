@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Deforestation Report - {{ alert.aoi.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-container {
+        padding: 4rem 0;
+        background-color: #f8fafc;
+        min-height: 100vh;
+    }
+
+    .report-header {
+        margin-bottom: 3rem;
+    }
+
+    .report-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2.5rem;
+    }
+
+    .comparison-card {
+        background: white;
+        border-radius: 24px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.1);
+    }
+
+    .comparison-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .comparison-item {
+        text-align: center;
+    }
+
+    .comparison-label {
+        font-weight: 700;
+        color: #64748b;
+        margin-bottom: 0.75rem;
+        display: block;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .comparison-image {
+        width: 100%;
+        aspect-ratio: 1;
+        background: #0f172a;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 2px solid #e2e8f0;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 24px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.1);
+        height: fit-content;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .stat-row:last-child {
+        border-bottom: none;
+    }
+
+    .stat-label {
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        color: #1e293b;
+        font-weight: 700;
+    }
+
+    .loss-highlight {
+        color: #ef4444;
+    }
+
+    .report-map {
+        height: 300px;
+        width: 100%;
+        border-radius: 16px;
+        margin-top: 2rem;
+        border: 1px solid #e2e8f0;
+    }
+
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        color: #64748b;
+        text-decoration: none;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        transition: color 0.2s;
+    }
+
+    .back-btn:hover {
+        color: #10b981;
+    }
+
+    .severity-badge {
+        padding: 0.5rem 1.25rem;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.875rem;
+        display: inline-block;
+        margin-bottom: 1rem;
+    }
+
+    .severity-high {
+        background: #fee2e2;
+        color: #ef4444;
+        border: 1px solid #fecaca;
+    }
+
+    .severity-med {
+        background: #ffedd5;
+        color: #f97316;
+        border: 1px solid #fed7aa;
+    }
+
+    .severity-low {
+        background: #f0fdf4;
+        color: #10b981;
+        border: 1px solid #dcfce7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="report-container">
+    <div class="container">
+        <a href="{% url 'home' %}" class="back-btn">← Back to Dashboard</a>
+
+        <div id="alert-data" data-lat="{{ alert.aoi.latitude|stringformat:'f' }}"
+            data-lon="{{ alert.aoi.longitude|stringformat:'f' }}"
+            data-radius="{{ alert.aoi.radius_km|stringformat:'f' }}" style="display: none;"></div>
+
+        <div class="report-header">
+            <span
+                class="severity-badge {% if alert.loss_percentage > 5 %}severity-high{% elif alert.loss_percentage > 2 %}severity-med{% else %}severity-low{% endif %}">
+                {% if alert.loss_percentage > 5 %}CRITICAL LOSS DETECTED{% elif alert.loss_percentage > 2 %}HIGH ALERT{%
+                else %}MODERATE CHANGE{% endif %}
+            </span>
+            <h1 style="font-size: 2.5rem; color: #1e293b; font-weight: 800; margin-bottom: 0.5rem;">Deforestation Report
+            </h1>
+            <p style="color: #64748b; font-size: 1.125rem;">Zone: {{ alert.aoi.name }} | Detected: {{
+                alert.detected_at|date:"M d, Y" }}</p>
+        </div>
+
+        <div class="report-grid">
+            <div class="comparison-card">
+                <h3 style="color: #1e293b; font-weight: 700;">Satellite Evidence</h3>
+                <p style="color: #64748b; font-size: 0.875rem;">Visual comparison between two capture dates showing
+                    vegetation loss.</p>
+
+                <div class="comparison-container">
+                    <div class="comparison-item">
+                        <span class="comparison-label">Before: {{ alert.analysis_before.analysis_date|date:"M d, Y"
+                            }}</span>
+                        <!-- In a real deployment, these would be the GEE Static Image or a Leaflet mini-map -->
+                        <div id="map-before" class="comparison-image"></div>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="comparison-label">After: {{ alert.analysis_after.analysis_date|date:"M d, Y"
+                            }}</span>
+                        <div id="map-after" class="comparison-image"></div>
+                    </div>
+                </div>
+
+                <!-- Leaflet for Mini maps -->
+                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        var dataEl = document.getElementById('alert-data');
+                        var lat = parseFloat(dataEl.dataset.lat);
+                        var lon = parseFloat(dataEl.dataset.lon);
+                        var center = [lat, lon];
+
+                        // Map Before
+                        var mapBefore = L.map('map-before', { zoomControl: false, attributionControl: false }).setView(center, 13);
+                        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapBefore);
+                        {% if alert.analysis_before.heatmap_file_path %}
+                        L.tileLayer('{{ alert.analysis_before.heatmap_file_path }}', { opacity: 0.8 }).addTo(mapBefore);
+                        {% endif %}
+
+                        // Map After
+                        var mapAfter = L.map('map-after', { zoomControl: false, attributionControl: false }).setView(center, 13);
+                        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapAfter);
+                        {% if alert.loss_map_path %}
+                        L.tileLayer('{{ alert.loss_map_path }}', { opacity: 0.9 }).addTo(mapAfter);
+                        {% endif %}
+
+                        // Sync maps
+                        mapBefore.on('move', function () { mapAfter.setView(mapBefore.getCenter(), mapBefore.getZoom()); });
+                        mapAfter.on('move', function () { mapBefore.setView(mapAfter.getCenter(), mapAfter.getZoom()); });
+                    });
+                </script>
+            </div>
+
+            <div class="stats-card">
+                <h3 style="color: #1e293b; font-weight: 700; margin-bottom: 1.5rem;">Impact Summary</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Area Lost</span>
+                    <span class="stat-value loss-highlight">{{ alert.forest_loss_hectares|floatformat:2 }} ha</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Loss Percentage</span>
+                    <span class="stat-value loss-highlight">{{ alert.loss_percentage|floatformat:2 }}%</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Baseline Health</span>
+                    <span class="stat-value">{{ alert.analysis_before.forest_cover_percentage|floatformat:1 }}%
+                        cover</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Current Health</span>
+                    <span class="stat-value">{{ alert.analysis_after.forest_cover_percentage|floatformat:1 }}%
+                        cover</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Zone Radius</span>
+                    <span class="stat-value">{{ alert.aoi.radius_km }} km</span>
+                </div>
+
+                <div id="full-map" class="report-map"></div>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        var dataEl = document.getElementById('alert-data');
+                        var lat = parseFloat(dataEl.dataset.lat);
+                        var lon = parseFloat(dataEl.dataset.lon);
+                        var radius = parseFloat(dataEl.dataset.radius);
+                        var center = [lat, lon];
+                        var fullMap = L.map('full-map').setView(center, 12);
+                        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(fullMap);
+                        L.circle(center, {
+                            radius: radius * 1000,
+                            color: '#ef4444',
+                            fillColor: '#ef4444',
+                            fillOpacity: 0.1
+                        }).addTo(fullMap);
+                    });
+                </script>
+
+                <button class="btn-submit"
+                    style="width: 100%; margin-top: 2rem; background: #1e293b; border: none; padding: 1rem; border-radius: 12px; color: white; font-weight: 700; cursor: pointer;">Export
+                    PDF Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

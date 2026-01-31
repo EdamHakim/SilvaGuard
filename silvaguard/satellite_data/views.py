@@ -1,7 +1,9 @@
+from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from .models import AreaOfInterest, DeforestationAlert, VegetationAnalysis
+from .forms import AreaOfInterestForm
 
 @login_required
 def api_get_map_data(request):
@@ -86,4 +88,63 @@ def api_get_map_data(request):
         "global_tile_url": global_tile_url
     }
     
+    print(f"Map Data API: Found {len(features)} features. Global URL length: {len(global_tile_url) if global_tile_url else 0}")
+    
     return JsonResponse(geojson)
+
+@login_required
+def aoi_list(request):
+    """
+    Lists all Areas of Interest being monitored.
+    """
+    aois = AreaOfInterest.objects.all().order_by('-created_at')
+    return render(request, 'satellite_data/aoi_list.html', {'aois': aois})
+
+@login_required
+def aoi_create(request):
+    """
+    View to add a new Area of Interest.
+    """
+    if request.method == 'POST':
+        form = AreaOfInterestForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('aoi_list')
+    else:
+        form = AreaOfInterestForm()
+    
+    return render(request, 'satellite_data/aoi_form.html', {'form': form, 'title': 'Add New Zone'})
+
+@login_required
+def guard_pulse_trigger(request):
+    """
+    Manually triggers the monitoring pulse from the UI.
+    """
+    if request.method == 'POST':
+        from .services import SilvaGuardOrchestrator
+        orchestrator = SilvaGuardOrchestrator()
+        orchestrator.run_pulse(days=15)
+        return redirect('home')
+
+@login_required
+def alert_detail(request, pk):
+    """
+    Detailed report for a specific Deforestation Alert.
+    """
+    from django.shortcuts import get_object_or_404
+    alert = get_object_or_404(DeforestationAlert, pk=pk)
+    
+    # Get before/after imagery for comparison
+    img_before = alert.analysis_before.processed_image.satellite_image
+    img_after = alert.analysis_after.processed_image.satellite_image
+    
+    # We'll pass tiles and metadata to the template
+    context = {
+        'alert': alert,
+        'img_before': img_before,
+        'img_after': img_after,
+        'aoi': alert.aoi,
+    }
+    
+    return render(request, 'satellite_data/alert_detail.html', context)
+    return redirect('home')

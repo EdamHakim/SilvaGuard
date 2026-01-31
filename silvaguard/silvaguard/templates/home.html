@@ -3,31 +3,19 @@
 {% block title %}Forest Monitoring Dashboard{% endblock %}
 
 {% block content %}
-<header class="header">
-    <div class="container">
-        <div class="header-content">
-            <div class="logo">SilvaGuard</div>
-            <nav class="navbar">
-                <a href="#overview" class="nav-link">Overview</a>
-                <a href="#map" class="nav-link">Map</a>
-                <a href="#analytics" class="nav-link">Analytics</a>
-                <a href="#alerts" class="nav-link">Alerts</a>
-                {% if user.is_authenticated %}
-                <a href="{% url 'logout' %}" class="nav-link">Logout</a>
-                {% else %}
-                <a href="{% url 'login' %}" class="nav-link">Login</a>
-                {% endif %}
-            </nav>
-        </div>
-    </div>
-</header>
 
 <section class="hero">
     <div class="container">
         <div class="hero-content">
             <h1>Forest Monitoring Dashboard</h1>
             <p>Real-time tracking and analysis of forest health, biodiversity, and environmental metrics</p>
-            <button class="cta-button">Start Monitoring</button>
+            <form action="{% url 'guard_pulse_trigger' %}" method="post" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="cta-button">Initiate Pulse Check</button>
+            </form>
+            <a href="{% url 'aoi_list' %}" class="cta-button"
+                style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); margin-left: 1rem; text-decoration: none; display: inline-block;">Manage
+                Zones</a>
         </div>
     </div>
 </section>
@@ -47,6 +35,9 @@
                 <h3>Forest Coverage</h3>
                 <div class="metric-value">{{ total_area_ha }}</div>
                 <div class="metric-subtitle">hectares monitored</div>
+                <a href="{% url 'aoi_create' %}"
+                    style="display: block; margin-top: 1rem; color: #10b981; font-size: 0.875rem; font-weight: 600;">+
+                    Add New Zone</a>
             </div>
             <div class="metric-card">
                 <div class="metric-icon">{{ avg_health }}%</div>
@@ -124,11 +115,12 @@
                         if (data.global_tile_url && data.global_tile_url.trim() !== '') {
                             console.log("SilvaGuard: Loading Global Forest Baseline...");
                             var globalMosaic = L.tileLayer(data.global_tile_url, {
-                                opacity: 0.6,
-                                attribution: 'GEE Mosaic'
+                                opacity: 1.0, // Full visibility for global baseline
+                                attribution: 'GFW / Hansen',
+                                zIndex: 1
                             });
                             globalMosaic.addTo(map);
-                            layerControl.addOverlay(globalMosaic, "Global Forest Baseline");
+                            layerControl.addOverlay(globalMosaic, "Global Baseline");
                         }
 
                         if (data.features.length > 0) {
@@ -136,8 +128,9 @@
                                 // 1. Forest Cover Tile
                                 if (f.properties.type === 'AOI' && f.properties.tile_url) {
                                     L.tileLayer(f.properties.tile_url, {
-                                        opacity: 0.7,
-                                        attribution: 'GEE'
+                                        opacity: 1.0, // Vibrant markers
+                                        attribution: 'SilvaGuard Focus',
+                                        zIndex: 10 // High priority
                                     }).addTo(forestLayers);
 
                                     // AOI Boundary
@@ -188,6 +181,53 @@
                         }
                     })
                     .catch(error => console.error('Error:', error));
+
+                // Add Legend
+                var legend = L.control({ position: 'bottomright' });
+                legend.onAdd = function (map) {
+                    var div = L.DomUtil.create('div', 'info legend');
+                    div.style.backgroundColor = 'rgba(15, 23, 42, 0.9)';
+                    div.style.color = 'white';
+                    div.style.padding = '1rem';
+                    div.style.borderRadius = '8px';
+                    div.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+                    div.style.lineHeight = '1.5';
+                    div.innerHTML = `
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.875rem;">Map Legend</h4>
+                        <div style="display: flex; align-items: center; margin-bottom: 0.25rem;">
+                            <span style="width: 12px; height: 12px; background: #10b981; border-radius: 50%; display: inline-block; margin-right: 8px;"></span>
+                            <span style="font-size: 0.75rem;">Monitored Area</span>
+                        </div>
+                        <div style="display: flex; align-items: center; margin-bottom: 0.25rem;">
+                            <span style="width: 12px; height: 12px; background: #ff4757; border-radius: 50%; display: inline-block; margin-right: 8px;"></span>
+                            <span style="font-size: 0.75rem;">Recent Loss</span>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span style="width: 12px; height: 12px; background: #2ecc71; display: inline-block; margin-right: 8px;"></span>
+                            <span style="font-size: 0.75rem;">Tree Cover (Hansen)</span>
+                        </div>
+                    `;
+                    return div;
+                };
+                legend.addTo(map);
+
+                // Global function to focus on specific coordinates
+                window.focusOnAlert = function (lat, lon) {
+                    map.setView([lat, lon], 14);
+                    // Add a temporary highlight circle or something?
+                    var pulse = L.circle([lat, lon], {
+                        radius: 500,
+                        color: '#ef4444',
+                        fillColor: '#ef4444',
+                        weight: 2,
+                        fillOpacity: 0.1
+                    }).addTo(map);
+
+                    setTimeout(() => map.removeLayer(pulse), 3000);
+
+                    // Scroll to map
+                    document.getElementById('map').scrollIntoView({ behavior: 'smooth' });
+                };
             });
         </script>
 
@@ -202,33 +242,40 @@
     <div class="container">
         <h2 class="section-title">Active Alerts</h2>
         <div class="alerts-list">
-            <div class="alert-item alert-low">
+            {% for alert in recent_alerts %}
+            <div
+                class="alert-item {% if alert.loss_percentage > 5 %}alert-high{% elif alert.loss_percentage > 2 %}alert-medium{% else %}alert-low{% endif %}">
                 <div class="alert-header">
-                    <h4>Seasonal Growth Detected</h4>
-                    <span class="alert-badge alert-badge-low">Low</span>
+                    <h4>Deforestation Detected: {{ alert.aoi.name }}</h4>
+                    <span
+                        class="alert-badge {% if alert.loss_percentage > 5 %}alert-badge-high{% elif alert.loss_percentage > 2 %}alert-badge-medium{% else %}alert-badge-low{% endif %}">
+                        {% if alert.loss_percentage > 5 %}Critical{% elif alert.loss_percentage > 2 %}High Risk{% else
+                        %}Moderate{% endif %}
+                    </span>
                 </div>
-                <p class="alert-time">2 hours ago</p>
-                <p class="alert-description">Vegetation growth increased by 12% in the northern sector. This is expected
-                    seasonal growth pattern.</p>
+                <p class="alert-time">{{ alert.detected_at|timesince }} ago</p>
+                <p class="alert-description">
+                    Estimated loss of <strong>{{ alert.forest_loss_hectares|floatformat:2 }} ha</strong>
+                    ({{ alert.loss_percentage|floatformat:1 }}% of forest cover) detected between
+                    {{ alert.analysis_before.processed_image.satellite_image.acquisition_date|date:"M d" }} and
+                    {{ alert.analysis_after.processed_image.satellite_image.acquisition_date|date:"M d" }}.
+                </p>
+                {% if alert.loss_map_path %}
+                <a href="#" data-lat="{{ alert.aoi.latitude|stringformat:'f' }}"
+                    data-lon="{{ alert.aoi.longitude|stringformat:'f' }}"
+                    onclick="focusOnAlert(parseFloat(this.dataset.lat), parseFloat(this.dataset.lon)); return false;"
+                    style="color: #10b981; font-size: 0.875rem; font-weight: 600; text-decoration: none; margin-top: 0.5rem; display: inline-block;">View
+                    on Map →</a>
+                <a href="{% url 'alert_detail' alert.pk %}"
+                    style="color: #64748b; font-size: 0.875rem; font-weight: 600; text-decoration: none; margin-top: 0.5rem; display: inline-block; margin-left: 1rem;">View
+                    Full Report →</a>
+                {% endif %}
             </div>
-            <div class="alert-item alert-medium">
-                <div class="alert-header">
-                    <h4>Water Stress Moderate</h4>
-                    <span class="alert-badge alert-badge-medium">Medium</span>
-                </div>
-                <p class="alert-time">4 hours ago</p>
-                <p class="alert-description">Soil moisture levels in central zone have decreased to 62%. Monitor for
-                    potential intervention.</p>
+            {% empty %}
+            <div class="alert-item alert-low" style="text-align: center; border: 1px dashed rgba(16, 185, 129, 0.3);">
+                <p style="margin: 0; color: #94a3b8;">No deforestation alerts detected in recent pulses.</p>
             </div>
-            <div class="alert-item alert-low">
-                <div class="alert-header">
-                    <h4>Wildlife Activity Normal</h4>
-                    <span class="alert-badge alert-badge-low">Low</span>
-                </div>
-                <p class="alert-time">8 hours ago</p>
-                <p class="alert-description">Camera traps recorded 47 species movements today, all within expected
-                    parameters for this season.</p>
-            </div>
+            {% endfor %}
         </div>
     </div>
 </section>

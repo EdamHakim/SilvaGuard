@@ -39,23 +39,22 @@ def home_view(request):
         avg_health = latest_analyses.first().forest_cover_percentage if latest_analyses.exists() else 0.0
         mode = "Monitored Zones"
     else:
-        # Global Fallback
-        from satellite_data.analysis import VegetationAnalyzer
-        analyzer = VegetationAnalyzer()
-        g_stats = analyzer.get_global_stats()
-        avg_health = g_stats['avg_forest_prob']
+        # Global Fallback - Hardcoded for performance to avoid blocking login
+        avg_health = 31.2 # World approximate
         total_area_ha = 14800000000 # World Land Area in ha
         mode = "World Wide"
 
     active_alerts = DeforestationAlert.objects.count()
     total_loss = sum([a.forest_loss_hectares for a in DeforestationAlert.objects.all()])
+    recent_alerts = DeforestationAlert.objects.all().order_by('-detected_at')[:5]
     
     context = {
         'total_area_ha': f"{total_area_ha:,.0f}",
         'avg_health': f"{avg_health:.1f}",
         'active_alerts': active_alerts,
         'total_loss': f"{total_loss:,.1f}",
-        'mode': mode
+        'mode': mode,
+        'recent_alerts': recent_alerts,
     }
     
     return render(request, 'home.html', context)
