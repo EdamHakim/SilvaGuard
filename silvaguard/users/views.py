@@ -29,26 +29,32 @@ def home_view(request):
     aois = AreaOfInterest.objects.all()
     # Total Monitored Area: Sum of (PI * R^2) in hectares
     # Radius is in km, Area = PI * R^2 sq km = 100 * PI * R^2 hectares
-    total_area_ha = sum([314.159 * (aoi.radius_km ** 2) for aoi in aois])
     
-    latest_analyses = []
-    for aoi in aois:
-        latest = VegetationAnalysis.objects.filter(
-            processed_image__satellite_image__aoi=aoi
-        ).order_by('-processed_image__satellite_image__acquisition_date').first()
-        if latest:
-            latest_analyses.append(latest)
-            
-    avg_health = sum([a.forest_cover_percentage for a in latest_analyses]) / len(latest_analyses) if latest_analyses else 0
-    
+    if aois.exists():
+        total_area_ha = sum([a.radius_km**2 * 3.14159 * 100 for a in aois]) # approx ha
+        latest_analyses = VegetationAnalysis.objects.filter(
+            processed_image__satellite_image__aoi__in=aois
+        ).order_by('-processed_image__satellite_image__acquisition_date')
+        avg_health = latest_analyses.first().forest_cover_percentage if latest_analyses.exists() else 0.0
+        mode = "Monitored Zones"
+    else:
+        # Global Fallback
+        from .analysis import VegetationAnalyzer
+        analyzer = VegetationAnalyzer()
+        g_stats = analyzer.get_global_stats()
+        avg_health = g_stats['avg_forest_prob']
+        total_area_ha = 14800000000 # World Land Area in ha
+        mode = "World Wide"
+
     active_alerts = DeforestationAlert.objects.count()
-    total_loss = DeforestationAlert.objects.aggregate(Sum('forest_loss_hectares'))['forest_loss_hectares__sum'] or 0
+    total_loss = sum([a.forest_loss_hectares for a in DeforestationAlert.objects.all()])
     
     context = {
-        'total_area_ha': int(total_area_ha),
-        'avg_health': int(avg_health),
+        'total_area_ha': f"{total_area_ha:,.0f}",
+        'avg_health': f"{avg_health:.1f}",
         'active_alerts': active_alerts,
-        'total_loss': round(total_loss, 1)
+        'total_loss': f"{total_loss:,.1f}",
+        'mode': mode
     }
     
     return render(request, 'home.html', context)

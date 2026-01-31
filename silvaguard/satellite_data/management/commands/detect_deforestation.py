@@ -9,7 +9,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         detector = DeforestationDetector()
-        analyzer = VegetationAnalyzer() # Helper to load data if needed, or we mock here
+        analyzer = VegetationAnalyzer()
 
         aois = AreaOfInterest.objects.all()
         

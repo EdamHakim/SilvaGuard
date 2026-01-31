@@ -1,5 +1,6 @@
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from .models import AreaOfInterest, DeforestationAlert, VegetationAnalysis
 
 @login_required

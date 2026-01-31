@@ -262,6 +262,84 @@ class VegetationAnalyzer:
             print(f"Failed to calculate forest loss: {e}")
             return {'loss_ha': 0.0, 'loss_percentage': 0.0}
 
+    def get_global_stats(self) -> dict:
+        """
+        Calculates forest statistics for the entire world using a coarse scale.
+        """
+        try:
+            # Use most recent month for stats
+            now_str = datetime.datetime.now().strftime('%Y-%m-%d')
+            end_date = ee.Date(now_str)
+            start_date = end_date.advance(-1, 'month')
+            
+            # Global collection
+            dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1").filterDate(start_date, end_date)
+            
+            # Median composite for stability
+            mosaic = dw_col.select('trees').median()
+            
+            # Binary mask (>0.5 prob)
+            forest_mask = mosaic.gt(0.5)
+            
+            # Reduce over global bounds at coarse scale (e.g. 10km)
+            # Scaling is CRITICAL for global results to not time out
+            stats = forest_mask.reduceRegion(
+                reducer=ee.Reducer.mean(),
+                geometry=ee.Geometry.Rectangle([-180, -90, 180, 90], 'EPSG:4326', False),
+                scale=5000, 
+                maxPixels=1e13
+            )
+            
+            forest_fraction = stats.get('trees').getInfo()
+            
+            # Total Land Area check (approx world land area in ha: ~14.8 billion)
+            # But let's just use the fraction
+            
+            return {
+                'avg_forest_prob': forest_fraction * 100 if forest_fraction else 0.0,
+                'is_global': True
+            }
+        except Exception as e:
+            print(f"Global Stats Failed: {e}")
+            return {'avg_forest_prob': 0.0, 'is_global': False}
+
+    def get_global_stats(self) -> dict:
+        """
+        Calculates forest statistics for the entire world using a coarse scale.
+        """
+        try:
+            # Use most recent month for stats
+            now_str = datetime.datetime.now().strftime('%Y-%m-%d')
+            end_date = ee.Date(now_str)
+            start_date = end_date.advance(-1, 'month')
+            
+            # Global collection
+            dw_col = ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1").filterDate(start_date, end_date)
+            
+            # Median composite for stability
+            mosaic = dw_col.select('trees').median()
+            
+            # Binary mask (>0.5 prob)
+            forest_mask = mosaic.gt(0.5)
+            
+            # Reduce over global bounds at coarse scale (e.g. 5km)
+            stats = forest_mask.reduceRegion(
+                reducer=ee.Reducer.mean(),
+                geometry=ee.Geometry.Rectangle([-180, -90, 180, 90], 'EPSG:4326', False),
+                scale=5000, 
+                maxPixels=1e13
+            )
+            
+            forest_fraction = stats.get('trees').getInfo()
+            
+            return {
+                'avg_forest_prob': forest_fraction * 100 if forest_fraction else 0.0,
+                'is_global': True
+            }
+        except Exception as e:
+            print(f"Global Stats Failed: {e}")
+            return {'avg_forest_prob': 0.0, 'is_global': False}
+
     def get_mosaic_tile_url(self, lat: float = None, lon: float = None, radius_km: float = None) -> str:
         """
         Generates a Mosaic Tile URL.
