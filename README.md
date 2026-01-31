@@ -11,11 +11,32 @@ By leveraging **Sentinel-2** or similar satellite data, the system:
 - **Calculates NDVI:** precise calculation of vegetation indices to assess plant health.
 - **Visualizes Data:** Provides map overlays and analytics for forestry management.
 
-## ✨ Key Features (Prototype)
-- **Image Preprocessing:** Automated pipeline to clean and prepare satellite bands.
-- **NDVI Calculation:** Core algorithm to determine vegetation health (`(NIR - Red) / (NIR + Red)`).
-- **Django Backend:** Robust framework for managing user access and data processing.
 - **Scalable Architecture:** Designed to handle large geotiff datasets (currently using mocks for demonstration).
+
+---
+
+## 📽️ Project Information
+- **Vision:** [Project_Idea.md](Project_Idea.md)
+- **Technical Progress:** [TODO.md](TODO.md)
+
+---
+
+## 🗺️ Roadmap
+
+### Phase 1: Foundation (Current)
+- [x] Django project & Custom User app.
+- [x] Satellite data models & GEE utilities.
+- [/] Initial dashboard UI layout (`home.html`).
+
+### Phase 2: Core Intelligence (Next)
+- [ ] Interactive Leaflet/GEE Map integration.
+- [ ] Automated image fetchers (Celery/Crontab).
+- [ ] Deforestation detection algorithm refinement.
+
+### Phase 3: Engagement & Scale
+- [ ] User notification system (Alerts).
+- [ ] Mobile-responsive optimizations.
+- [ ] Exportable reports for organizations.
 
 ## ⚙️ Installation & Setup
 
