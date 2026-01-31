@@ -2,6 +2,6 @@ FAILED to initialize Google Earth Engine.
 Key Path: None
 Error: GOOGLE_APPLICATION_CREDENTIALS not set in environment.
 Traceback (most recent call last):
-  File "D:\Everything\Hackathons\ActInSpace\SilvaGuard\silvaguard\satellite_data\gee_utils.py", line 18, in initialize_gee
+  File "C:\Users\hakim\Desktop\SilvaGuard\silvaguard\satellite_data\gee_utils.py", line 18, in initialize_gee
     raise Exception("GOOGLE_APPLICATION_CREDENTIALS not set in environment.")
 Exception: GOOGLE_APPLICATION_CREDENTIALS not set in environment.

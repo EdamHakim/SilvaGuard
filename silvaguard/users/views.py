@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
+from .models import CustomUser
 
 def login_view(request):
     if request.method == 'POST':
@@ -39,7 +40,7 @@ def home_view(request):
         mode = "Monitored Zones"
     else:
         # Global Fallback
-        from .analysis import VegetationAnalyzer
+        from satellite_data.analysis import VegetationAnalyzer
         analyzer = VegetationAnalyzer()
         g_stats = analyzer.get_global_stats()
         avg_health = g_stats['avg_forest_prob']

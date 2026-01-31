@@ -18,7 +18,7 @@
 - [ ] Integrate interactive map (Leaflet or Mapbox) with GEE tiles.
 - [ ] Build AOI management interface (Add/Edit AOIs).
 - [ ] Create detailed report view for individual alerts.
-- [ ] Finalize Authentication templates (Login/Signup).
+- [x] Finalize Authentication template (Login Only).
 
 ## 🚀 Future Goals
 - [ ] Mobile-responsive dashboard.
